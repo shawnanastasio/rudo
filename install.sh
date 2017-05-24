@@ -19,12 +19,25 @@ chown -R root:wheel /usr/local/bin/rudo
 chmod 4511 /usr/local/bin/rudo
 
 echo "Generating PAM configuration..."
+unamestr=$(uname)
+if [[ "$unamestr" == "darwin" ]]; then
 cat << EOF > /etc/pam.d/rudo
 auth       required       pam_opendirectory.so
 account    required       pam_permit.so
 password   required       pam_deny.so
 session    required       pam_permit.so
 EOF
+else
+cat << EOF > /etc/pam.d/rudo
+auth       include      system-auth
+account    include      system-auth
+password   include      system-auth
+session    optional     pam_keyinit.so revoke
+session    required     pam_limits.so
+session    include      system-auth
+EOF
+fi
+
 chmod 0644 /etc/pam.d/rudo
 
 echo "Done installing rudo!"
