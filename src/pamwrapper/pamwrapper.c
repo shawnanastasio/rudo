@@ -23,9 +23,9 @@ static int pam_conv_handler(int num_msg, const struct pam_message **msg,
             continue;
 
         // Allocate a buffer in the response and copy the password to it
-        resp[i]->resp = malloc(strlen(appdata_ptr) + 1);
-        if (!resp[i]->resp) return PAM_BUF_ERR;
-        strcpy(resp[i]->resp, appdata_ptr);
+        (*resp)[i].resp = malloc(strlen(appdata_ptr) + 1);
+        if (!(*resp)[i].resp) return PAM_BUF_ERR;
+        strcpy((*resp)[i].resp, appdata_ptr);
     }
 
     return PAM_SUCCESS;
