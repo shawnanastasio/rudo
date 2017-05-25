@@ -6,14 +6,24 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #include <security/pam_appl.h>
 
 static int pam_conv_handler(int num_msg, const struct pam_message **msg,
         struct pam_response **resp, void *appdata_ptr) {
 
+    // Validate num_msg
+    if (num_msg > PAM_MAX_NUM_MSG) {
+        return PAM_CONV_ERR;
+    }
+
     // Allocate empty responses for each message
-    *resp = calloc(num_msg, sizeof(struct pam_response));
-    if (!resp) return PAM_BUF_ERR;
+    struct pam_response *responses = calloc(num_msg, sizeof(struct pam_response));
+    if (!responses) {
+        // If the allocation failed, return PAM_BUF_ERR
+        return PAM_BUF_ERR;
+    }
+    *resp = responses;
 
     int i;
     for (i=0; i<num_msg; i++) {
@@ -23,15 +33,25 @@ static int pam_conv_handler(int num_msg, const struct pam_message **msg,
             continue;
 
         // Allocate a buffer in the response and copy the password to it
-        (*resp)[i].resp = malloc(strlen(appdata_ptr) + 1);
-        if (!(*resp)[i].resp) return PAM_BUF_ERR;
-        strcpy((*resp)[i].resp, appdata_ptr);
+        responses[i].resp = malloc(strlen(appdata_ptr) + 1);
+        if (!responses[i].resp) {
+            // If the allocation failed, free *resp and return PAM_BUF_ERR
+            free(responses);
+            return PAM_BUF_ERR;
+        }
+        strcpy(responses[i].resp, appdata_ptr);
     }
 
     return PAM_SUCCESS;
 }
 
 bool check_authentication(const char *user, const char *pass) {
+    // Validate the length of the given password
+    size_t pass_len = strlen(pass);
+    if (pass_len > PAM_MAX_MSG_SIZE - 1 || pass_len < 1) {
+        return false;
+    }
+
     // Create a pam conversation struct using our handler above
     struct pam_conv conv = { &pam_conv_handler, (void *)pass };
 
