@@ -13,6 +13,7 @@ static int pam_conv_handler(int num_msg, const struct pam_message **msg,
 
     // Allocate empty responses for each message
     *resp = calloc(num_msg, sizeof(struct pam_response));
+    if (!resp) return PAM_BUF_ERR;
 
     int i;
     for (i=0; i<num_msg; i++) {
@@ -23,6 +24,7 @@ static int pam_conv_handler(int num_msg, const struct pam_message **msg,
 
         // Allocate a buffer in the response and copy the password to it
         resp[i]->resp = malloc(strlen(appdata_ptr) + 1);
+        if (!resp[i]->resp) return PAM_BUF_ERR;
         strcpy(resp[i]->resp, appdata_ptr);
     }
 
