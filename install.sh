@@ -20,7 +20,7 @@ chmod 4511 /usr/local/bin/rudo
 
 echo "Generating PAM configuration..."
 unamestr=$(uname)
-if [[ "$unamestr" == "darwin" ]]; then
+if [[ "$unamestr" == "Darwin" ]]; then
 cat << EOF > /etc/pam.d/rudo
 auth       required       pam_opendirectory.so
 account    required       pam_permit.so
