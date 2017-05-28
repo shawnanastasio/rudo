@@ -30,7 +30,7 @@ static DEFAULT_PROMPT: &'static str = "Password: ";
 fn print_help(program_name: &str, opts: Options) {
     let brief = format!("Usage: {} [flags] [command]", program_name);
     writeln!(&mut io::stderr(), "{}", opts.usage(&brief))
-    .expect("Failed to write to stderr!");
+        .expect("Failed to write to stderr!");
 }
 
 fn generate_empty_config() {
@@ -39,30 +39,27 @@ fn generate_empty_config() {
 
     // Get a serialized string representation of the object
     let settings_str = new_settings.to_string()
-    .expect("Unable to generate empty settings file!");
+        .expect("Unable to generate empty settings file!");
 
     // Output the new settings string to stdout
     println!("{}", settings_str);
 }
 
 /**
-* Handles listing of current user's permissions to STDOUT
-*/
+ * Handles listing of current user's permissions to STDOUT
+ */
 fn list_permissions() {
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)
-    .expect("Unable to read configuration file! Run --genconfig.");
+        .expect("Unable to read configuration file! Run --genconfig.");
 
     // Get this user's User struct
     let username = get_username();
-    let user = settings.get_user(&username);
-    if user.is_err() {
-        writeln!(&mut io::stderr(),
-        "You are not in the rudo.json file! This incident won't be reported.")
-        .expect("Failed to write to stderr!");
+    let user = settings.get_user(&username).unwrap_or_else(|_| {
+        writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
+            .expect("Failed to write to stderr!");
         process::exit(1);
-    }
-    let user = user.unwrap();
+    });
 
     // Create a string of all commands the user can run
     let mut all_commands: String = String::new();
@@ -94,18 +91,15 @@ fn run_command(user: Option<String>, command: &str, args: &Vec<String>) {
 
     // Confirm that user is in the settings file and has permission
     let username: String = get_username();
-    let can_run = settings.can_run_command(&username, command);
-    if can_run.is_err() {
-        writeln!(&mut io::stderr(),
-        "You are not in the rudo.json file! This incident won't be reported.")
-        .expect("Failed to write to stderr!");
+    let can_run = settings.can_run_command(&username, command).unwrap_or_else(|_| {
+        writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
+            .expect("Failed to write to stderr!");
         process::exit(1);
-    }
-    let can_run = can_run.unwrap();
+    });
+
     if !can_run {
-        writeln!(&mut io::stderr(),
-        "You don't have permission to run that! This incident won't be reported.")
-        .expect("Failed to write to stderr!");
+        writeln!(&mut io::stderr(), "You don't have permission to run that! This incident won't be reported.")
+            .expect("Failed to write to stderr!");
         process::exit(1);
     }
 
@@ -114,9 +108,8 @@ fn run_command(user: Option<String>, command: &str, args: &Vec<String>) {
     if let Some(username) = user {
         let u = get_user_by_name(&username);
         if u.is_none() {
-            writeln!(&mut io::stderr(),
-            "Invalid username! See --help for more information.")
-            .expect("Failed to write to stderr!");
+            writeln!(&mut io::stderr(), "Invalid username! See --help for more information.")
+                .expect("Failed to write to stderr!");
             process::exit(1);
         }
         uid = u.unwrap().uid();
@@ -129,7 +122,7 @@ fn run_command(user: Option<String>, command: &str, args: &Vec<String>) {
 
     // If we got here, it means the command failed
     writeln!(&mut io::stderr(), "rudo: {}: command not found", &command)
-    .expect("Failed to write to stderr!");
+        .expect("Failed to write to stderr!");
 }
 
 fn main() {
@@ -157,7 +150,7 @@ fn main() {
         print_help(&program_name, opts);
         process::exit(1);
     }
-    
+
     // Handle help
     if matches.opt_present("h") {
         print_help(&program_name, opts);
@@ -187,7 +180,6 @@ fn main() {
 
     // Handle default behavior (run command)
     let command = matches.free[0].clone();
-    let mut command_args = &mut matches.free[0..].to_vec();
-    command_args.remove(0);
-    run_command(user, &command, &command_args);
+    matches.free.remove(0);
+    run_command(user, &command, &matches.free);
 }
