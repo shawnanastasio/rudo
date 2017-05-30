@@ -18,6 +18,7 @@ use getopts::ParsingStyle;
 
 extern crate users;
 use users::get_user_by_name;
+use users::get_group_by_name;
 
 #[macro_use]
 extern crate serde_derive;
@@ -78,7 +79,7 @@ fn list_permissions() {
  * @param command program to launch
  * @param args arguments to launch the program with
  */
-fn run_command(user: Option<String>, command: &str, args: &Vec<String>) {
+fn run_command(user: Option<String>, group: Option<String>,  command: &str, args: &Vec<String>) {
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)
     .expect("Unable to read configuration file! Run --genconfig.");
@@ -105,20 +106,31 @@ fn run_command(user: Option<String>, command: &str, args: &Vec<String>) {
 
     // Determine the uid of the user to impersonate
     let mut uid: u32 = 0;
+    let mut gid: u32 = 0;
     if let Some(username) = user {
-        let u = get_user_by_name(&username);
-        if u.is_none() {
+        let u = get_user_by_name(&username).unwrap_or_else(|| {
             writeln!(&mut io::stderr(), "Invalid username! See --help for more information.")
                 .expect("Failed to write to stderr!");
             process::exit(1);
-        }
-        uid = u.unwrap().uid();
+        });
+        uid = u.uid();
+        gid = u.primary_group_id();
+    }
+
+
+    // If the user provided a group, set that
+    if let Some(groupname) = group {
+    	let g = get_group_by_name(&groupname).unwrap_or_else(|| {
+    		writeln!(&mut io::stderr(), "Invalid group name! See --help for more information.")
+    			.expect("Failed to write to stderr!");
+    		process::exit(1);	
+    	});
+    	gid = g.gid();
     }
 
 
     // Now that the user is authenticated, run the provided command
-    // TODO: Allow impersonating groups other than wheel
-    Command::new(command).args(args).uid(uid).gid(0).exec();
+    Command::new(command).args(args).uid(uid).gid(gid).exec();
 
     // If we got here, it means the command failed
     writeln!(&mut io::stderr(), "rudo: {}: command not found", &command)
@@ -132,11 +144,13 @@ fn main() {
     opts.parsing_style(ParsingStyle::StopAtFirstFree);
 
     let mut user: Option<String> = None;
+    let mut group: Option<String> = None;
 
     // Set up arguments
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("l", "list", "list all permissions for current user");
     opts.optopt("u", "user", "run as the specified user", "<user>");
+    opts.optopt("g", "group", "run as the specified group", "<group");
     opts.optflag("", "genconfig", "Generate an empty config and output to STDOUT");
 
     // Create a vec of up to 2 arguments to parse
@@ -172,6 +186,15 @@ fn main() {
         };
     }
 
+    // Handle --group
+    if matches.opt_present("g") {
+    	// Set the group to the provided group
+    	group = match matches.opt_str("g") {
+    		Some(x) => Some(x),
+    		None => { print_help(&program_name, opts); process::exit(1) }
+    	};
+    }
+
     // Handle --genconfig
     if matches.opt_present("genconfig") {
         generate_empty_config();
@@ -181,5 +204,5 @@ fn main() {
     // Handle default behavior (run command)
     let command = matches.free[0].clone();
     matches.free.remove(0);
-    run_command(user, &command, &matches.free);
+    run_command(user, group, &command, &matches.free);
 }
