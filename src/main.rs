@@ -54,6 +54,12 @@ fn list_permissions() {
     let settings = Settings::from_file(CONFIG_PATH)
         .expect("Unable to read configuration file! Run --genconfig.");
 
+    // Give the user 3 tries to authenticate
+    let auth_res = authenticate_current_user_n(&settings, 3);
+    if !auth_res {
+        process::exit(1);
+    }
+    
     // Get this user's User struct
     let username = get_username();
     let user = settings.get_user(&username).unwrap_or_else(|_| {
