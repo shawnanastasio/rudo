@@ -23,6 +23,42 @@ extern "C" {
     pub fn check_authentication(username: *const i8, password: *const i8) -> bool;
 }
 
+/// If touchid support is enabled, expose the needed CLocalAuthentication functions too
+#[cfg(feature = "touchid")]
+extern "C" {
+    pub fn supports_touchid() -> bool;
+    pub fn authenticate_user_touchid(reason: *const i8) -> bool;
+
+    // Rust's libc crate doesn't yet have a binding for seteuid()
+    // I have submitted a PR, but in the mean time this will do.
+    pub fn seteuid(uid: u32) -> i32;
+}
+
+/// Wrapper for touchid authentication 
+/// Returns true if user was able to authenticate with touchid
+#[cfg(feature = "touchid")]
+pub fn try_touchid_authenticate() -> bool {
+    let res: bool;
+    
+    // Before authenticating with touchid, we must set our current UID to the caller
+    unsafe { seteuid(get_current_uid()) };
+
+    // See if current machine can use touchid and return early if we can't
+    let can_touchid = unsafe { supports_touchid() };
+    if !can_touchid {
+        res = false;
+    } else {
+        // Try authenticating with touchid
+        writeln!(&mut io::stderr(), "Authenticating with TouchID...").unwrap();
+        res = unsafe { authenticate_user_touchid(CString::new("authenticate").unwrap().as_ptr()) }
+    }
+
+    // Reset our UID to root
+    unsafe { seteuid(0) };
+
+    res
+}
+
 pub fn get_username() -> String {
     let user = get_user_by_uid(get_current_uid()).unwrap();
     let username = &user.name();
@@ -57,6 +93,16 @@ pub fn authenticate_current_user(settings: &Settings) -> bool {
 
 // Try to authenticate a user n times
 pub fn authenticate_current_user_n(settings: &Settings, n: i32) -> bool {
+    // If we were compiled with touchid support, try authenticating with touchid first
+    #[cfg(feature = "touchid")]
+    {
+        let touchid_res = try_touchid_authenticate();
+        if touchid_res {
+            return true;
+        }
+        // If touchid failed, just fallback to standard PAM authentication.     
+    }
+    
     for i in 0..n {
         if authenticate_current_user(settings) {
             break;

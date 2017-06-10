@@ -150,7 +150,7 @@ fn main() {
     opts.optflag("h", "help", "print this help menu");
     opts.optflag("l", "list", "list all permissions for current user");
     opts.optopt("u", "user", "run as the specified user", "<user>");
-    opts.optopt("g", "group", "run as the specified group", "<group");
+    opts.optopt("g", "group", "run as the specified group", "<group>");
     opts.optflag("", "genconfig", "Generate an empty config and output to STDOUT");
 
     // Create a vec of up to 2 arguments to parse
@@ -159,11 +159,6 @@ fn main() {
         Ok(m) => { m }
         Err(_) => { print_help(&program_name, opts); process::exit(1); }
     };
-
-    if matches.free.len() < 1 {
-        print_help(&program_name, opts);
-        process::exit(1);
-    }
 
     // Handle help
     if matches.opt_present("h") {
@@ -175,6 +170,11 @@ fn main() {
     if matches.opt_present("l") {
         list_permissions();
         process::exit(0);
+    }
+
+    if matches.free.len() < 1 {
+        print_help(&program_name, opts);
+        process::exit(1);
     }
 
     // Handle --user

@@ -6,7 +6,7 @@ if [ "$EUID" -ne 0 ]; then
 fi
 
 echo "Building rudo..."
-cargo build --release
+cargo build --release $@
 
 echo "Generating configuration file..."
 target/release/rudo --genconfig > /etc/rudo.json

@@ -9,7 +9,7 @@ echo "Updating rudo..."
 git pull
 
 echo "Building rudo..."
-cargo build --release
+cargo build --release $@
 
 echo "Installing rudo binary to /usr/local/bin/..."
 cp target/release/rudo /usr/local/bin/rudo
