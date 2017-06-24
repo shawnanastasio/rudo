@@ -12,6 +12,11 @@ use auth::get_username;
 mod settings;
 use settings::Settings;
 
+mod session;
+
+extern crate libc;
+use libc::isatty;
+
 extern crate getopts;
 use getopts::Options;
 use getopts::ParsingStyle;
@@ -20,6 +25,8 @@ extern crate users;
 use users::get_user_by_name;
 use users::get_group_by_name;
 
+extern crate time;
+
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
@@ -27,6 +34,8 @@ extern crate serde_json;
 // Global config
 static CONFIG_PATH: &'static str = "/etc/rudo.json";
 static DEFAULT_PROMPT: &'static str = "Password: ";
+static SESSION_PATH: &'static str = "/var/run/rudo";
+static DEFAULT_SESSION_TIMEOUT: i64 = 900;
 
 fn print_help(program_name: &str, opts: Options) {
     let brief = format!("Usage: {} [flags] [command]", program_name);
@@ -208,6 +217,12 @@ fn main() {
     }
 
     // Handle default behavior (run command)
+
+    // Make sure we're running in a tty
+    let is_tty = unsafe { isatty(0) };
+    if is_tty != 1 {
+        writeln!(&mut io::stderr(), "rudo must be run from a TTY!").unwrap();
+    }
     let command = matches.free[0].clone();
     matches.free.remove(0);
     run_command(user, group, &command, &matches.free);

@@ -3,6 +3,7 @@ use std::fs::File;
 use std::error::Error;
 
 use DEFAULT_PROMPT;
+use DEFAULT_SESSION_TIMEOUT;
 
 extern crate serde_json;
 
@@ -22,6 +23,7 @@ pub struct User {
 #[derive(Serialize, Deserialize)]
 pub struct Settings {
     pub prompt: String,
+    pub session_timeout_sec: i64,
     pub allowed_users: Vec<User>,
 }
 
@@ -30,6 +32,7 @@ impl Settings {
         // Create an empty Settings struct with `root` as the only user
         let mut s = Settings {
             prompt: String::from(DEFAULT_PROMPT),
+            session_timeout_sec: DEFAULT_SESSION_TIMEOUT,
             allowed_users: Vec::new(),
         };
 

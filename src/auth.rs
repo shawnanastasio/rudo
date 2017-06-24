@@ -3,10 +3,14 @@
  */
 
 use std::io;
+use std::process;
 use std::io::Write;
 use std::ffi::CString;
 
 use settings::Settings;
+
+use session::check_session;
+use session::create_session;
 
 // rpassword crate to read passwords from user
 extern crate rpassword;
@@ -93,11 +97,24 @@ pub fn authenticate_current_user(settings: &Settings) -> bool {
 
 // Try to authenticate a user n times
 pub fn authenticate_current_user_n(settings: &Settings, n: i32) -> bool {
-    // If we were compiled with touchid support, try authenticating with touchid first
+
+    // Check to see if the current user/tty already has an ongoing session
+    let username = get_username();
+    let has_session = check_session(&username).unwrap();
+    if has_session { return true; }
+
+    // If we were compiled with touchid support, try authenticating with touchid
     #[cfg(feature = "touchid")]
     {
         let touchid_res = try_touchid_authenticate();
         if touchid_res {
+            // If TouchID succeeded, create a new session and return true
+            if settings.session_timeout_sec > 0 {
+                create_session(&username, settings.session_timeout_sec).unwrap_or_else(|e| {
+                    writeln!(&mut io::stderr(), "Failed to create session!: {}", e).unwrap();
+                    process::exit(1);
+                });
+            }
             return true;
         }
         // If touchid failed, just fallback to standard PAM authentication.     
@@ -108,12 +125,23 @@ pub fn authenticate_current_user_n(settings: &Settings, n: i32) -> bool {
             break;
         } else if i == n-1 {
             writeln!(&mut io::stderr(), "Too many failed password attempts!")
-            .expect("Failed to write to stderr!");
+                .unwrap();
             return false
         } else {
             writeln!(&mut io::stderr(), "Invalid password! Try again.")
-            .expect("Failed to write to stderr!");
+                .unwrap();
         }
     }
+
+    // If we got here it means the user authenticated successfully, so let's
+    // create a new session for them
+    if settings.session_timeout_sec > 0 {
+        create_session(&username, settings.session_timeout_sec).unwrap_or_else(|e| {
+            writeln!(&mut io::stderr(), "Failed to create session!: {}", e).unwrap();
+            process::exit(1);
+        });
+    }
+    
+    
     true
 }
