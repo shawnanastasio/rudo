@@ -187,6 +187,12 @@ fn main() {
         process::exit(0);
     }
 
+    // Handle --genconfig
+    if matches.opt_present("genconfig") {
+        generate_empty_config();
+        process::exit(0);
+    }
+
     if matches.free.len() < 1 {
         print_help(&program_name, opts);
         process::exit(1);
@@ -208,12 +214,6 @@ fn main() {
     		Some(x) => Some(x),
     		None => { print_help(&program_name, opts); process::exit(1) }
     	};
-    }
-
-    // Handle --genconfig
-    if matches.opt_present("genconfig") {
-        generate_empty_config();
-        process::exit(0);
     }
 
     // Handle default behavior (run command)
