@@ -1,10 +1,12 @@
-extern crate gcc;
+extern crate cc;
 
 use std::process::Command;
 
 fn main() {
     // Build C PAM wrapper library
-    gcc::compile_library("libpamwrapper.a", &["src/pamwrapper/pamwrapper.c"]);
+    cc::Build::new()
+        .file("src/pamwrapper/pamwrapper.c")
+        .compile("pamwrapper");
 
     // Build CLocalAuthentication if on macOS and it was requested
     if cfg!(target_os = "macos") && cfg!(feature = "touchid") {

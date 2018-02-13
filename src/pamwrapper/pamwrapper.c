@@ -36,8 +36,8 @@ static int pam_conv_handler(int num_msg, const struct pam_message **msg,
         responses[i].resp = malloc(strlen(appdata_ptr) + 1);
         if (!responses[i].resp) {
             // If the allocation failed, free all allocations and return PAM_BUF_ERR;
-            for (i=0; i<num_msg; i++) {
-                if (responses[i].resp) free(responses[i].resp);
+            while (i-- > 0) {
+                free(responses[i].resp);
             }
             free(responses);
             return PAM_BUF_ERR;

@@ -2,10 +2,10 @@ use std::io::prelude::*;
 use std::fs::File;
 use std::error::Error;
 
+use serde_json;
+
 use DEFAULT_PROMPT;
 use DEFAULT_SESSION_TIMEOUT;
-
-extern crate serde_json;
 
 // List of permissions
 #[derive(Serialize, Deserialize)]

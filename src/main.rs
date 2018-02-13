@@ -5,14 +5,15 @@ use std::process::Command;
 use std::io::Write;
 use std::os::unix::process::CommandExt;
 
+mod session;
 mod auth;
 use auth::authenticate_current_user_n;
-use auth::get_username;
+use auth::pam::get_username;
 
 mod settings;
 use settings::Settings;
 
-mod session;
+extern crate time;
 
 extern crate libc;
 use libc::isatty;
@@ -25,17 +26,15 @@ extern crate users;
 use users::get_user_by_name;
 use users::get_group_by_name;
 
-extern crate time;
-
 #[macro_use]
 extern crate serde_derive;
 extern crate serde_json;
 
 // Global config
-static CONFIG_PATH: &'static str = "/etc/rudo.json";
-static DEFAULT_PROMPT: &'static str = "Password: ";
-static SESSION_PATH: &'static str = "/var/run/rudo";
-static DEFAULT_SESSION_TIMEOUT: i64 = 900;
+pub static CONFIG_PATH: &'static str = "/etc/rudo.json";
+pub static DEFAULT_PROMPT: &'static str = "Password: ";
+pub static SESSION_PATH: &'static str = "/var/run/rudo";
+pub static DEFAULT_SESSION_TIMEOUT: i64 = 900;
 
 fn print_help(program_name: &str, opts: Options) {
     let brief = format!("Usage: {} [flags] [command]", program_name);
@@ -64,13 +63,18 @@ fn list_permissions() {
         .expect("Unable to read configuration file! Run --genconfig.");
 
     // Give the user 3 tries to authenticate
-    let auth_res = authenticate_current_user_n(&settings, 3);
+    let auth_res = authenticate_current_user_n(&settings, 3).unwrap_or_else(|e| {
+        writeln!(&mut io::stderr(), "Error occurred while authenticating: {}", e).unwrap();
+        process::exit(1);
+    });
+
     if !auth_res {
+        writeln!(&mut io::stderr(), "Failed to authenticate!").unwrap();
         process::exit(1);
     }
-    
+
     // Get this user's User struct
-    let username = get_username();
+    let username = get_username().unwrap();
     let user = settings.get_user(&username).unwrap_or_else(|_| {
         writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
             .expect("Failed to write to stderr!");
@@ -100,22 +104,27 @@ fn run_command(user: Option<String>, group: Option<String>,  command: &str, args
     .expect("Unable to read configuration file! Run --genconfig.");
 
     // Give the user 3 tries to authenticate
-    let auth_res = authenticate_current_user_n(&settings, 3);
+    let auth_res = authenticate_current_user_n(&settings, 3).unwrap_or_else(|e| {
+        writeln!(&mut io::stderr(), "Error occurred while authenticating: {}", e).unwrap();
+        process::exit(1);
+    });
+
     if !auth_res {
+        writeln!(&mut io::stderr(), "Failed to authenticate!").unwrap();
         process::exit(1);
     }
 
     // Confirm that user is in the settings file and has permission
-    let username: String = get_username();
+    let username: String = get_username().unwrap();
     let can_run = settings.can_run_command(&username, command).unwrap_or_else(|_| {
         writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
-            .expect("Failed to write to stderr!");
+            .unwrap();
         process::exit(1);
     });
 
     if !can_run {
         writeln!(&mut io::stderr(), "You don't have permission to run that! This incident won't be reported.")
-            .expect("Failed to write to stderr!");
+            .unwrap();
         process::exit(1);
     }
 
@@ -124,8 +133,7 @@ fn run_command(user: Option<String>, group: Option<String>,  command: &str, args
     let mut gid: u32 = 0;
     if let Some(username) = user {
         let u = get_user_by_name(&username).unwrap_or_else(|| {
-            writeln!(&mut io::stderr(), "Invalid username! See --help for more information.")
-                .expect("Failed to write to stderr!");
+            writeln!(&mut io::stderr(), "Invalid username! See --help for more information.").unwrap();
             process::exit(1);
         });
         uid = u.uid();
@@ -136,9 +144,8 @@ fn run_command(user: Option<String>, group: Option<String>,  command: &str, args
     // If the user provided a group, set that
     if let Some(groupname) = group {
     	let g = get_group_by_name(&groupname).unwrap_or_else(|| {
-    		writeln!(&mut io::stderr(), "Invalid group name! See --help for more information.")
-    			.expect("Failed to write to stderr!");
-    		process::exit(1);	
+    		writeln!(&mut io::stderr(), "Invalid group name! See --help for more information.").unwrap();
+    		process::exit(1);
     	});
     	gid = g.gid();
     }
@@ -148,8 +155,7 @@ fn run_command(user: Option<String>, group: Option<String>,  command: &str, args
     Command::new(command).args(args).uid(uid).gid(gid).exec();
 
     // If we got here, it means the command failed
-    writeln!(&mut io::stderr(), "rudo: {}: command not found", &command)
-        .expect("Failed to write to stderr!");
+    writeln!(&mut io::stderr(), "rudo: {}: command not found", &command).unwrap();
 }
 
 fn main() {

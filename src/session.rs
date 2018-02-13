@@ -15,10 +15,10 @@ use std::fs::DirBuilder;
 use std::os::unix::fs::PermissionsExt;
 use std::os::unix::fs::DirBuilderExt;
 
-extern crate serde_json;
-extern crate time;
-extern crate libc;
-use self::libc::ttyname;
+use time;
+use serde_json;
+
+use libc::ttyname;
 
 use SESSION_PATH;
 
@@ -90,7 +90,7 @@ fn init_session_dir(username: &str) {
 }
 
 /// Find a session for the given user and ttyname
-/// Also deletes all expired session for the user
+/// Also deletes all expired sessions for the user
 fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, Box<Error>> {
     let user_sub_path_str = format!("{}/{}", SESSION_PATH, username);
     let user_sub_path = Path::new(&user_sub_path_str);
@@ -101,7 +101,7 @@ fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, B
     // Go through all session files in directory
     let mut res: Option<Session> = None;
     let session_files = fs::read_dir(&user_sub_path_str)?;
-    
+
     for file in session_files {
         // Read the session file into a Session struct
         let file = file?;
@@ -139,7 +139,7 @@ pub fn check_session(username: &str) -> Result<bool, Box<Error>> {
 
     // See if the user has a current session
     let session_res = find_user_session(username, &ttyname)?;
-    
+
     match session_res {
         Some(_) => return Ok(true), // An ongoing session was found
         None => return Ok(false),   // No ongoing session was found
@@ -150,13 +150,9 @@ pub fn check_session(username: &str) -> Result<bool, Box<Error>> {
 pub fn create_session(username: &str, time: i64) -> Result<(), Box<Error>> {
     // Make sure the user has a session directory and it has the correct permissions
     init_session_dir(username);
-    
+
     // Get the name of the current TTY
-    let ttyname = get_cur_tty_name().unwrap_or_else(|e| {
-        writeln!(&mut io::stderr(), "Failed to get current TTY name!: {}",
-                 e).unwrap();
-        process::exit(1);
-    });
+    let ttyname = get_cur_tty_name()?;
 
     // Create the new session object
     let cur_timestamp = time::get_time().sec;
@@ -183,7 +179,7 @@ pub fn create_session(username: &str, time: i64) -> Result<(), Box<Error>> {
             let mut permissions = f.metadata()?.permissions();
             permissions.set_mode(0o600);
             f.set_permissions(permissions)?;
-            
+
             break;
         }
         i += 1;
@@ -191,4 +187,3 @@ pub fn create_session(username: &str, time: i64) -> Result<(), Box<Error>> {
 
     Ok(())
 }
-
