@@ -4,23 +4,26 @@ use std::io::prelude::*;
 use std::io;
 use std::cmp;
 
-extern crate rpassword;
-extern crate users;
+use session::create_session;
+use session::check_session;
 
-use ::session::create_session;
-use ::session::check_session;
-
-use ::settings::Settings;
+use settings::Settings;
 
 #[cfg(feature = "pam")]
 pub mod pam;
 #[cfg(feature = "pam")]
 use self::pam::*;
 
+#[cfg(feature = "touchid")]
+pub mod touchid;
+#[cfg(feature = "touchid")]
+use self::touchid::*;
+
 /// Interface for authentication frameworks
 pub trait AuthFramework {
     fn authenticate(&self) -> Result<bool, Box<Error>>;
     fn get_max_tries(&self) -> i32;
+    fn get_name(&self) -> &'static str;
 }
 
 pub fn authenticate_current_user_n(settings: &Settings, n: i32)
@@ -33,11 +36,16 @@ pub fn authenticate_current_user_n(settings: &Settings, n: i32)
 
     // Instantiate all supported frameworks
     let mut frameworks: Vec<Box<AuthFramework>> = Vec::new();
-
+    
+    #[cfg(feature = "touchid")]
+    {
+        frameworks.push(Box::new(TouchIDAuthFramework::new(settings)));
+    }
+    
     #[cfg(feature = "pam")]
     {
         frameworks.push(Box::new(PamAuthFramework::new(settings)));
-    }
+    } 
 
     let mut authenticated: bool = false;
     for f in frameworks.iter() {
@@ -46,7 +54,7 @@ pub fn authenticate_current_user_n(settings: &Settings, n: i32)
         if max_tries == 0 {
             max_tries = n;
         } else {
-            max_tries = cmp::max(max_tries, n);
+            max_tries = cmp::min(max_tries, n);
         }
 
         // Try to authenticate using this framework
@@ -58,12 +66,16 @@ pub fn authenticate_current_user_n(settings: &Settings, n: i32)
             }
 
             if i != max_tries - 1 {
-                writeln!(&mut io::stderr(), "Invalid credentials. Try again.").unwrap();
+                writeln!(&mut io::stderr(), "Invalid credentials. Try again.")?;
             }
         }
 
         // If authentication succeeded, break
-        if authenticated { break; }
+        if authenticated { 
+            break; 
+        } else {
+            writeln!(&mut io::stderr(), "Failed to authenticate with {}.", f.get_name())?;
+        }
     }
 
     // If authentication was successful, crate a new session

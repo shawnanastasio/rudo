@@ -3,12 +3,12 @@ use std::error::Error;
 use std::io::prelude::*;
 use std::io;
 
-use auth::rpassword::read_password;
+use rpassword::read_password;
 
-use auth::users::get_user_by_uid;
-use auth::users::get_current_uid;
+use users::get_user_by_uid;
+use users::get_current_uid;
 
-use ::settings::Settings;
+use settings::Settings;
 
 use auth::AuthFramework;
 
@@ -20,16 +20,17 @@ extern "C" {
     pub fn check_authentication(username: *const i8, password: *const i8) -> bool;
 }
 
+const PAM_MAXTRIES: i32 = 0; 
+const PAM_NAME: &'static str = "PAM";
+
 pub struct PamAuthFramework<'a> {
     settings: &'a Settings,
-    max_tries: i32 // maximum number of authentication attempts, 0 for inf
 }
 
 impl<'a> PamAuthFramework<'a> {
     pub fn new(settings: &Settings) -> PamAuthFramework {
         PamAuthFramework {
             settings: settings,
-            max_tries: 0
         }
     }
 }
@@ -58,7 +59,11 @@ impl<'a> AuthFramework for PamAuthFramework<'a> {
     }
 
     fn get_max_tries(&self) -> i32 {
-        return self.max_tries;
+        PAM_MAXTRIES
+    }
+
+    fn get_name(&self) -> &'static str {
+        PAM_NAME
     }
 }
 

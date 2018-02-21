@@ -14,6 +14,7 @@ mod settings;
 use settings::Settings;
 
 extern crate time;
+extern crate rpassword;
 
 extern crate libc;
 use libc::isatty;
