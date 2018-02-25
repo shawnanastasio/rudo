@@ -1,5 +1,6 @@
 use std::env;
 use std::io;
+use std::error::Error;
 use std::process;
 use std::process::Command;
 use std::io::Write;
@@ -8,7 +9,10 @@ use std::os::unix::process::CommandExt;
 mod session;
 mod auth;
 use auth::authenticate_current_user_n;
-use auth::pam::get_username;
+
+mod osutils;
+use osutils::OSUtils;
+use osutils::unix::UnixOSUtils;
 
 mod settings;
 use settings::Settings;
@@ -23,9 +27,6 @@ extern crate getopts;
 use getopts::Options;
 use getopts::ParsingStyle;
 
-extern crate users;
-use users::get_user_by_name;
-use users::get_group_by_name;
 
 #[macro_use]
 extern crate serde_derive;
@@ -55,32 +56,23 @@ fn generate_empty_config() {
     println!("{}", settings_str);
 }
 
-/**
- * Handles listing of current user's permissions to STDOUT
- */
-fn list_permissions() {
+///
+/// Handles listing of current user's permissions to STDOUT
+///
+fn list_permissions<T: OSUtils>(osutils: &T) -> Result<i32, Box<Error>> {
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)
         .expect("Unable to read configuration file! Run --genconfig.");
 
     // Give the user 3 tries to authenticate
-    let auth_res = authenticate_current_user_n(&settings, 3).unwrap_or_else(|e| {
-        writeln!(&mut io::stderr(), "Error occurred while authenticating: {}", e).unwrap();
-        process::exit(1);
-    });
-
+    let auth_res = authenticate_current_user_n::<T>(osutils, &settings, 3)?;
     if !auth_res {
-        writeln!(&mut io::stderr(), "Failed to authenticate!").unwrap();
-        process::exit(1);
+        return Ok(1);
     }
 
     // Get this user's User struct
-    let username = get_username().unwrap();
-    let user = settings.get_user(&username).unwrap_or_else(|_| {
-        writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
-            .expect("Failed to write to stderr!");
-        process::exit(1);
-    });
+    let username = osutils.get_username()?;
+    let user = settings.get_user(&username)?;
 
     // Create a string of all commands the user can run
     let mut all_commands: String = String::new();
@@ -93,62 +85,50 @@ fn list_permissions() {
     process::exit(0);
 }
 
-/**
- * Handles default behavior of program - Authenticate and run a command
- * @param user user to run command as
- * @param command program to launch
- * @param args arguments to launch the program with
- */
-fn run_command(user: Option<String>, group: Option<String>,  command: &str, args: &Vec<String>) {
+/// Handles default behavior of program - Authenticate and run a command
+/// @param user user to run command as
+/// @param command program to launch
+/// @param args arguments to launch the program with
+/// @return program return code
+fn run_command<T: OSUtils>(osutils: &T, user: Option<String>, group: Option<String>,  command: &str, args: &Vec<String>)
+    -> Result<i32, Box<Error>> {
+
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)
-    .expect("Unable to read configuration file! Run --genconfig.");
+        .expect("Unable to read configuration file! Run --genconfig.");
 
     // Give the user 3 tries to authenticate
-    let auth_res = authenticate_current_user_n(&settings, 3).unwrap_or_else(|e| {
-        writeln!(&mut io::stderr(), "Error occurred while authenticating: {}", e).unwrap();
-        process::exit(1);
-    });
-
+    let auth_res = authenticate_current_user_n::<T>(osutils, &settings, 3)?;
     if !auth_res {
-        writeln!(&mut io::stderr(), "Failed to authenticate!").unwrap();
-        process::exit(1);
+        return Ok(1);
     }
 
     // Confirm that user is in the settings file and has permission
-    let username: String = get_username().unwrap();
+    let username: String = osutils.get_username()?;
     let can_run = settings.can_run_command(&username, command).unwrap_or_else(|_| {
-        writeln!(&mut io::stderr(), "You are not in the rudo.json file! This incident won't be reported.")
-            .unwrap();
-        process::exit(1);
+        writeln!(&mut io::stderr(), "You are not in the rudo.json file!").unwrap();
+        return false;
     });
 
     if !can_run {
         writeln!(&mut io::stderr(), "You don't have permission to run that! This incident won't be reported.")
             .unwrap();
-        process::exit(1);
+        return Ok(1);
     }
 
     // Determine the uid of the user to impersonate
     let mut uid: u32 = 0;
     let mut gid: u32 = 0;
     if let Some(username) = user {
-        let u = get_user_by_name(&username).unwrap_or_else(|| {
-            writeln!(&mut io::stderr(), "Invalid username! See --help for more information.").unwrap();
-            process::exit(1);
-        });
-        uid = u.uid();
-        gid = u.primary_group_id();
+        let uidgid = osutils.get_uidgid_by_username(&username)?;
+        uid = uidgid.0;
+        gid = uidgid.1;
     }
 
 
     // If the user provided a group, set that
     if let Some(groupname) = group {
-    	let g = get_group_by_name(&groupname).unwrap_or_else(|| {
-    		writeln!(&mut io::stderr(), "Invalid group name! See --help for more information.").unwrap();
-    		process::exit(1);
-    	});
-    	gid = g.gid();
+    	gid = osutils.get_gid_by_groupname(&groupname)?;
     }
 
 
@@ -157,6 +137,7 @@ fn run_command(user: Option<String>, group: Option<String>,  command: &str, args
 
     // If we got here, it means the command failed
     writeln!(&mut io::stderr(), "rudo: {}: command not found", &command).unwrap();
+    Ok(1)
 }
 
 fn main() {
@@ -175,6 +156,9 @@ fn main() {
     opts.optopt("g", "group", "run as the specified group", "<group>");
     opts.optflag("", "genconfig", "Generate an empty config and output to STDOUT");
 
+    // Instantiate platform OSUtils
+    let osutils = UnixOSUtils::new();
+
     // Create a vec of up to 2 arguments to parse
     // We ignore all arguments past the first
     let mut matches = match opts.parse(&args[1..]) {
@@ -190,8 +174,11 @@ fn main() {
 
     // Handle --list
     if matches.opt_present("l") {
-        list_permissions();
-        process::exit(0);
+        let res = list_permissions(&osutils).unwrap_or_else(|e|{
+            writeln!(&mut io::stderr(), "Failed to list permissions: {}", e).unwrap();
+            process::exit(1);
+        });
+        process::exit(res);
     }
 
     // Handle --genconfig
@@ -232,5 +219,10 @@ fn main() {
     }
     let command = matches.free[0].clone();
     matches.free.remove(0);
-    run_command(user, group, &command, &matches.free);
+    let res = run_command(&osutils, user, group, &command, &matches.free).unwrap_or_else(|e| {
+        writeln!(&mut io::stderr(), "Failed to run command: {}", e).unwrap();
+        process::exit(1);
+    });
+
+    process::exit(res);
 }

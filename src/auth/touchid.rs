@@ -1,10 +1,9 @@
 use std::ffi::CString;
 use std::error::Error;
 
-use users::get_current_uid;
-
 use settings::Settings;
 use auth::AuthFramework;
+use osutils::OSUtils;
 
 // C function prototypes
 extern "C" {
@@ -19,22 +18,25 @@ extern "C" {
 const TOUCHID_MAX_TRIES: i32 = 1;
 const TOUCHID_NAME: &'static str = "TouchID";
 
-pub struct TouchIDAuthFramework<'a> {
-    settings: &'a Settings
+pub struct TouchIDAuthFramework<'a, T: OSUtils + 'a> {
+    osutils: &'a T,
+    settings: &'a Settings,
 }
 
-impl<'a> TouchIDAuthFramework<'a> {
-    pub fn new(settings: &Settings) -> TouchIDAuthFramework {
+impl<'a, T> TouchIDAuthFramework<'a, T> where T: OSUtils {
+    pub fn new(osutils: &'a T, settings: &'a Settings) -> TouchIDAuthFramework<'a, T> {
         TouchIDAuthFramework {
+            osutils: osutils,
             settings: settings
         }
     }
 }
 
-impl<'a> AuthFramework for TouchIDAuthFramework<'a> {
+impl<'a, T> AuthFramework for TouchIDAuthFramework<'a, T> where T: OSUtils {
     fn authenticate(&self) -> Result<bool, Box<Error>> {
         // Set effective UID to the caller's UID so we can use TouchID
-        unsafe { seteuid(get_current_uid()); }
+        let current_uid = self.osutils.get_current_uid()?;
+        unsafe { seteuid(current_uid); }
 
         // See if this machine supports TouchID
         if ! unsafe { supports_touchid() } {

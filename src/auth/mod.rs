@@ -1,4 +1,3 @@
-//mod touchid;
 use std::error::Error;
 use std::io::prelude::*;
 use std::io;
@@ -8,6 +7,7 @@ use session::create_session;
 use session::check_session;
 
 use settings::Settings;
+use osutils::OSUtils;
 
 #[cfg(feature = "pam")]
 pub mod pam;
@@ -26,11 +26,11 @@ pub trait AuthFramework {
     fn get_name(&self) -> &'static str;
 }
 
-pub fn authenticate_current_user_n(settings: &Settings, n: i32)
+pub fn authenticate_current_user_n<T: OSUtils>(osutils: &T, settings: &Settings, n: i32)
     -> Result<bool, Box<Error>> {
 
     // If the user already has a valid session, skip authentication
-    let username = get_username()?;
+    let username = osutils.get_username()?;
     let has_session = check_session(&username)?;
     if has_session { return Ok(true); }
 
@@ -39,12 +39,12 @@ pub fn authenticate_current_user_n(settings: &Settings, n: i32)
     
     #[cfg(feature = "touchid")]
     {
-        frameworks.push(Box::new(TouchIDAuthFramework::new(settings)));
+        frameworks.push(Box::new(TouchIDAuthFramework::<T>::new(osutils, settings)));
     }
     
     #[cfg(feature = "pam")]
     {
-        frameworks.push(Box::new(PamAuthFramework::new(settings)));
+        frameworks.push(Box::new(PamAuthFramework::<T>::new(osutils, settings)));
     } 
 
     let mut authenticated: bool = false;
