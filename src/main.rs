@@ -18,10 +18,7 @@ mod settings;
 use settings::Settings;
 
 extern crate time;
-extern crate rpassword;
-
 extern crate libc;
-use libc::isatty;
 
 extern crate getopts;
 use getopts::Options;
@@ -210,13 +207,7 @@ fn main() {
     	};
     }
 
-    // Handle default behavior (run command)
-
-    // Make sure we're running in a tty
-    let is_tty = unsafe { isatty(0) };
-    if is_tty != 1 {
-        writeln!(&mut io::stderr(), "rudo must be run from a TTY!").unwrap();
-    }
+    // Handle default behavior (run command) 
     let command = matches.free[0].clone();
     matches.free.remove(0);
     let res = run_command(&osutils, user, group, &command, &matches.free).unwrap_or_else(|e| {

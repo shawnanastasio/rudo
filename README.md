@@ -42,9 +42,9 @@ Once the installation is complete, you can edit the configuration file at `/etc/
 }
 ```
 
-To enable (experimental) TouchID on newer macs, call `./install.sh` with `--features touchid`:
+To enable (experimental) TouchID on newer macs, call `./install.sh` with `--features macos_extra`:
 ```
-# ./install.sh --features touchid
+# ./install.sh --features macos_extra
 ```
 Once the feature is enabled, rudo will attempt to authenticate with TouchID. If TouchID authentication fails, rudo will fall back to PAM password authentication.
 

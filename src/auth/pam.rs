@@ -1,10 +1,11 @@
 use std::ffi::CString;
 use std::error::Error;
-use std::io::prelude::*;
-use std::io;
+use std::io::Write;
 
-extern crate rpassword;
-use self::rpassword::read_password;
+extern crate termion;
+use self::termion::input::TermRead;
+use self::termion::get_tty;
+use self::termion::raw::IntoRawMode;
 
 use settings::Settings;
 use auth::AuthFramework;
@@ -41,9 +42,7 @@ impl<'a, T> AuthFramework for PamAuthFramework<'a, T> where T: OSUtils {
         let c_username = CString::new(username)?;
 
         // Prompt the user for a password using the prompt from the settings
-        print!("{}", self.settings.get_prompt());
-        io::stdout().flush().expect("Failed to flush stdout!");
-        let password = read_password()?;
+        let password = read_password(self.settings.get_prompt())?;
 
         // Convert the password into a C String
         let c_password = CString::new(password)?;
@@ -64,4 +63,22 @@ impl<'a, T> AuthFramework for PamAuthFramework<'a, T> where T: OSUtils {
     fn get_name(&self) -> &'static str {
         PAM_NAME
     }
+}
+
+/// Function to read in a password from the controlling TTY
+/// Works even if stdin/stdout are redirected
+fn read_password(prompt: &str) -> Result<String, Box<Error>> {
+    let mut tty = get_tty()?;
+    tty.write_all(prompt.as_bytes())?;
+   
+    // Put the TTY into raw mode so it doesn't echo the user's keystrokes back
+    let res: Result<String, Box<Error>>;
+    {
+        let mut tty_raw = (&mut tty).into_raw_mode()?;
+        res = tty_raw.read_line()?.ok_or_else(|| From::from("Error reading password!"));
+    }
+    
+    // Write a newline and return the result
+    tty.write_all(b"\n")?;
+    res
 }

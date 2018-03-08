@@ -88,7 +88,7 @@ impl Settings {
     }
 
     // Get the current prompt or return the default if none is present in config
-    pub fn get_prompt(&self) -> String {
-        self.prompt.clone()
+    pub fn get_prompt(&self) -> &String {
+        &self.prompt
     }
 }

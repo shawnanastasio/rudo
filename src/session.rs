@@ -18,7 +18,7 @@ use std::os::unix::fs::DirBuilderExt;
 use time;
 use serde_json;
 
-use libc::ttyname;
+use libc::{isatty, ttyname};
 
 use SESSION_PATH;
 
@@ -35,6 +35,9 @@ struct Session {
 /// and return as a Rust string
 fn get_cur_tty_name() -> Result<String, Box<Error>> {
     unsafe {
+        if isatty(0) == 0 {
+            return Err(From::from("rudo must currently be called with STDIN connected to a TTY!"));
+        }
         let ttyname_c = ttyname(0);
         // Verify that call didn't fail
         if ttyname_c.is_null() {

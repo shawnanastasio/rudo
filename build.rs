@@ -3,10 +3,12 @@ extern crate cc;
 use std::process::Command;
 
 fn main() {
-    // Build C PAM wrapper library
-    cc::Build::new()
-        .file("src/pamwrapper/pamwrapper.c")
-        .compile("pamwrapper");
+    // Build C PAM wrapper library if pam is enabled
+    if cfg!(feature = "pam") { 
+        cc::Build::new()
+            .file("src/pamwrapper/pamwrapper.c")
+            .compile("pamwrapper");
+    }
 
     // Build CLocalAuthentication if on macOS and it was requested
     if cfg!(target_os = "macos") && cfg!(feature = "touchid") {
