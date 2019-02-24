@@ -4,8 +4,6 @@ rudo is a toy `sudo` clone written in [Rust](http://www.rust-lang.org/) that aim
 
 **DISCLAIMER: This is a toy. This has not undergone any formal security analysis. I am not a security expert. Use at your own risk.**
 
-[![asciicast](https://asciinema.org/a/awawysk5ksi96c4jhi7ci7aew.png)](https://asciinema.org/a/awawysk5ksi96c4jhi7ci7aew)
-
 Why?
 ----
 I wanted to learn Rust by writing a project that would highlight its strengths as a safe systems programming language. Many other command-line utilities have been rewritten in Rust, but to my knowledge `sudo` has not.
