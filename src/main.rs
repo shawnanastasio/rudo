@@ -19,6 +19,7 @@ use settings::Settings;
 
 extern crate time;
 extern crate libc;
+extern crate which;
 
 extern crate getopts;
 use getopts::Options;
@@ -102,8 +103,8 @@ fn run_command<T: OSUtils>(osutils: &T, user: Option<String>, group: Option<Stri
 
     // Confirm that user is in the settings file and has permission
     let username: String = osutils.get_username()?;
-    let can_run = settings.can_run_command(&username, command).unwrap_or_else(|_| {
-        writeln!(&mut io::stderr(), "You are not in the rudo.json file!").unwrap();
+    let can_run = settings.can_run_command(&username, command).unwrap_or_else(|err| {
+        writeln!(&mut io::stderr(), "Permission denied: {:?}", err).unwrap();
         return false;
     });
 

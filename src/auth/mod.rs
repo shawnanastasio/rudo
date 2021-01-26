@@ -35,7 +35,7 @@ pub fn authenticate_current_user_n<T: OSUtils>(osutils: &T, settings: &Settings,
     if has_session { return Ok(true); }
 
     // Instantiate all supported frameworks
-    let mut frameworks: Vec<Box<AuthFramework>> = Vec::new();
+    let mut frameworks: Vec<Box<dyn AuthFramework>> = Vec::new();
     
     #[cfg(feature = "touchid")]
     {

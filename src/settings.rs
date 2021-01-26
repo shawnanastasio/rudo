@@ -1,8 +1,10 @@
 use std::io::prelude::*;
 use std::fs::File;
 use std::error::Error;
+use std::path::Path;
 
 use serde_json;
+use which::which;
 
 use DEFAULT_PROMPT;
 use DEFAULT_SESSION_TIMEOUT;
@@ -46,6 +48,20 @@ impl Settings {
         s
     }
 
+    fn validate(&self) -> Option<Box<dyn Error>> {
+        // Check that all paths in allowed commands are absolute
+        for user in &self.allowed_users {
+            for cmd in &user.permissions.allowed_commands {
+                if cmd == "*" { continue; }
+
+                if cmd.chars().nth(0).unwrap() != '/' {
+                    return Some(From::from("Only absolute paths are allowed in allowed_commands"));
+                }
+            }
+        }
+        None
+    }
+
     pub fn from_file(path: &str) -> Result<Settings, Box<dyn Error>> {
         // Read the file
         //let mut f: File = try!(File::open(path).map_err(|e| Err(e)));
@@ -56,8 +72,11 @@ impl Settings {
         // Create a Settings struct from the data
         let settings: Settings = serde_json::from_str(&buf)?;
 
-        // Return newly created settings struct
-        Ok(settings)
+        // Validate struct and return
+        match settings.validate() {
+            Some(v) => Err(v),
+            None => Ok(settings)
+        }
     }
 
     pub fn to_string(&self) -> Result<String, Box<dyn Error>> {
@@ -80,8 +99,33 @@ impl Settings {
 
         // See if the user has permission to run this command
         for perm in &user.permissions.allowed_commands {
-            if perm == "*" || perm == command {
+            if perm == "*" {
                 return Ok(true);
+            }
+
+            let perm_path = Path::new(perm);
+            let perm_canonical = match perm_path.canonicalize() {
+                Ok(v) => v,
+                Err(_) => { continue; }
+            };
+
+            if command.contains("/") {
+                // If a path was given, canonicalize and check for direct match
+                let command_path = Path::new(command);
+                let command_canonical = command_path.canonicalize()?;
+
+                if perm_canonical == command_canonical {
+                    return Ok(true);
+                }
+            } else {
+                // If a non-path command name was given, resolve it in path and compare
+                // the result against the permission's canonical path.
+                let command_pathbuf = which(command)?;
+                let command_canonical = command_pathbuf.as_path().canonicalize()?;
+
+                if perm_canonical == command_canonical {
+                    return Ok(true);
+                }
             }
         }
         Ok(false)

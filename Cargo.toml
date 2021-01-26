@@ -16,6 +16,7 @@ getopts = "0.2.17"
 libc = "0.2.23"
 time = "0.1.39"
 termion = "1.5.1"
+which = "4.0"
 
 # Optional, per-OS
 users = { version = "0.6.0", optional = true }
