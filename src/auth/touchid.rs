@@ -33,7 +33,7 @@ impl<'a, T> TouchIDAuthFramework<'a, T> where T: OSUtils {
 }
 
 impl<'a, T> AuthFramework for TouchIDAuthFramework<'a, T> where T: OSUtils {
-    fn authenticate(&self) -> Result<bool, Box<Error>> {
+    fn authenticate(&self) -> Result<bool, Box<dyn Error>> {
         // Set effective UID to the caller's UID so we can use TouchID
         let current_uid = self.osutils.get_current_uid()?;
         unsafe { seteuid(current_uid); }

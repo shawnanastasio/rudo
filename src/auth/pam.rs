@@ -36,7 +36,7 @@ impl<'a, T> PamAuthFramework<'a, T> where T: OSUtils {
 }
 
 impl<'a, T> AuthFramework for PamAuthFramework<'a, T> where T: OSUtils {
-    fn authenticate(&self) -> Result<bool, Box<Error>> {
+    fn authenticate(&self) -> Result<bool, Box<dyn Error>> {
         // Get the current user's username and convert it to a C string
         let username = self.osutils.get_username()?;
         let c_username = CString::new(username)?;
@@ -67,12 +67,12 @@ impl<'a, T> AuthFramework for PamAuthFramework<'a, T> where T: OSUtils {
 
 /// Function to read in a password from the controlling TTY
 /// Works even if stdin/stdout are redirected
-fn read_password(prompt: &str) -> Result<String, Box<Error>> {
+fn read_password(prompt: &str) -> Result<String, Box<dyn Error>> {
     let mut tty = get_tty()?;
     tty.write_all(prompt.as_bytes())?;
    
     // Put the TTY into raw mode so it doesn't echo the user's keystrokes back
-    let res: Result<String, Box<Error>>;
+    let res: Result<String, Box<dyn Error>>;
     {
         let mut tty_raw = (&mut tty).into_raw_mode()?;
         res = tty_raw.read_line()?.ok_or_else(|| From::from("Error reading password!"));

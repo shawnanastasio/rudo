@@ -46,7 +46,7 @@ impl Settings {
         s
     }
 
-    pub fn from_file(path: &str) -> Result<Settings, Box<Error>> {
+    pub fn from_file(path: &str) -> Result<Settings, Box<dyn Error>> {
         // Read the file
         //let mut f: File = try!(File::open(path).map_err(|e| Err(e)));
         let mut f: File = File::open(path)?;
@@ -60,12 +60,12 @@ impl Settings {
         Ok(settings)
     }
 
-    pub fn to_string(&self) -> Result<String, Box<Error>> {
+    pub fn to_string(&self) -> Result<String, Box<dyn Error>> {
         Ok(serde_json::to_string_pretty(self)?)
     }
 
-    pub fn get_user(&self, username: &str) -> Result<&User, Box<Error>> {
-        let mut user: Result<&User, Box<Error>> = Err(From::from("User not in configuration file!"));
+    pub fn get_user(&self, username: &str) -> Result<&User, Box<dyn Error>> {
+        let mut user: Result<&User, Box<dyn Error>> = Err(From::from("User not in configuration file!"));
         for u in &self.allowed_users {
             if username == u.username {
                 user = Ok(u);
@@ -74,7 +74,7 @@ impl Settings {
         user
     }
 
-    pub fn can_run_command(&self, username: &str, command: &str) -> Result<bool, Box<Error>> {
+    pub fn can_run_command(&self, username: &str, command: &str) -> Result<bool, Box<dyn Error>> {
         // Find the user's config entry
         let user: &User = self.get_user(username)?;
 

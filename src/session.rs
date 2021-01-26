@@ -33,7 +33,7 @@ struct Session {
 
 /// Safe wrapper to get the name of the current ttyname
 /// and return as a Rust string
-fn get_cur_tty_name() -> Result<String, Box<Error>> {
+fn get_cur_tty_name() -> Result<String, Box<dyn Error>> {
     unsafe {
         if isatty(0) == 0 {
             return Err(From::from("rudo must currently be called with STDIN connected to a TTY!"));
@@ -94,7 +94,7 @@ fn init_session_dir(username: &str) {
 
 /// Find a session for the given user and ttyname
 /// Also deletes all expired sessions for the user
-fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, Box<Error>> {
+fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, Box<dyn Error>> {
     let user_sub_path_str = format!("{}/{}", SESSION_PATH, username);
     let user_sub_path = Path::new(&user_sub_path_str);
     if !user_sub_path.exists() || !user_sub_path.is_dir() {
@@ -133,7 +133,7 @@ fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, B
 
 /// Checks to see if the user has an active authenticated session.
 /// Returns whether the user has an active session or not
-pub fn check_session(username: &str) -> Result<bool, Box<Error>> {
+pub fn check_session(username: &str) -> Result<bool, Box<dyn Error>> {
     // Make sure the session directory exists and has the correct permissions
     init_session_dir(username);
 
@@ -150,7 +150,7 @@ pub fn check_session(username: &str) -> Result<bool, Box<Error>> {
 }
 
 /// Create a session for the given user that will last for the given time in seconds
-pub fn create_session(username: &str, time: i64) -> Result<(), Box<Error>> {
+pub fn create_session(username: &str, time: i64) -> Result<(), Box<dyn Error>> {
     // Make sure the user has a session directory and it has the correct permissions
     init_session_dir(username);
 

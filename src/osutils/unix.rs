@@ -17,7 +17,7 @@ impl UnixOSUtils {
 }
 
 impl OSUtils for UnixOSUtils {
-    fn get_username(&self) -> Result<String, Box<Error>> {
+    fn get_username(&self) -> Result<String, Box<dyn Error>> {
         match get_user_by_uid(get_current_uid()) {
             Some(u) => {
                 Ok(String::from(u.name()))
@@ -29,7 +29,7 @@ impl OSUtils for UnixOSUtils {
         }
     } 
 
-    fn get_uidgid_by_username(&self, username: &str) -> Result<(u32, u32), Box<Error>> {
+    fn get_uidgid_by_username(&self, username: &str) -> Result<(u32, u32), Box<dyn Error>> {
         match get_user_by_name(username) {
             Some(u) => {
                 Ok((u.uid(), u.primary_group_id()))
@@ -41,7 +41,7 @@ impl OSUtils for UnixOSUtils {
         }
     }
 
-    fn get_gid_by_groupname(&self, groupname: &str) -> Result<u32, Box<Error>> {
+    fn get_gid_by_groupname(&self, groupname: &str) -> Result<u32, Box<dyn Error>> {
         match get_group_by_name(groupname) {
             Some(g) => {
                 Ok(g.gid())
@@ -53,7 +53,7 @@ impl OSUtils for UnixOSUtils {
         }
     }
 
-    fn get_current_uid(&self) -> Result<u32, Box<Error>> {
+    fn get_current_uid(&self) -> Result<u32, Box<dyn Error>> {
         Ok(get_current_uid())
     }
 } 

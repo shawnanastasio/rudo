@@ -56,7 +56,7 @@ fn generate_empty_config() {
 ///
 /// Handles listing of current user's permissions to STDOUT
 ///
-fn list_permissions<T: OSUtils>(osutils: &T) -> Result<i32, Box<Error>> {
+fn list_permissions<T: OSUtils>(osutils: &T) -> Result<i32, Box<dyn Error>> {
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)
         .expect("Unable to read configuration file! Run --genconfig.");
@@ -88,7 +88,7 @@ fn list_permissions<T: OSUtils>(osutils: &T) -> Result<i32, Box<Error>> {
 /// @param args arguments to launch the program with
 /// @return program return code
 fn run_command<T: OSUtils>(osutils: &T, user: Option<String>, group: Option<String>,  command: &str, args: &Vec<String>)
-    -> Result<i32, Box<Error>> {
+    -> Result<i32, Box<dyn Error>> {
 
     // Load the settings file
     let settings = Settings::from_file(CONFIG_PATH)

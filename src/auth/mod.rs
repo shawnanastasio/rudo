@@ -21,13 +21,13 @@ use self::touchid::*;
 
 /// Interface for authentication frameworks
 pub trait AuthFramework {
-    fn authenticate(&self) -> Result<bool, Box<Error>>;
+    fn authenticate(&self) -> Result<bool, Box<dyn Error>>;
     fn get_max_tries(&self) -> i32;
     fn get_name(&self) -> &'static str;
 }
 
 pub fn authenticate_current_user_n<T: OSUtils>(osutils: &T, settings: &Settings, n: i32)
-    -> Result<bool, Box<Error>> {
+    -> Result<bool, Box<dyn Error>> {
 
     // If the user already has a valid session, skip authentication
     let username = osutils.get_username()?;
