@@ -93,14 +93,14 @@ impl Settings {
         user
     }
 
-    pub fn can_run_command(&self, username: &str, command: &str) -> Result<bool, Box<dyn Error>> {
+    pub fn sanitize_user_command(&self, username: &str, command: &str) -> Result<String, Box<dyn Error>> {
         // Find the user's config entry
         let user: &User = self.get_user(username)?;
 
         // See if the user has permission to run this command
         for perm in &user.permissions.allowed_commands {
             if perm == "*" {
-                return Ok(true);
+                return Ok(command.to_string());
             }
 
             let perm_path = Path::new(perm);
@@ -115,20 +115,20 @@ impl Settings {
                 let command_canonical = command_path.canonicalize()?;
 
                 if perm_canonical == command_canonical {
-                    return Ok(true);
+                    return Ok(command_canonical.into_os_string().into_string().unwrap());
                 }
             } else {
-                // If a non-path command name was given, resolve it in path and compare
+                // If a non-path command name was given, resolve it in PATH and compare
                 // the result against the permission's canonical path.
                 let command_pathbuf = which(command)?;
                 let command_canonical = command_pathbuf.as_path().canonicalize()?;
 
                 if perm_canonical == command_canonical {
-                    return Ok(true);
+                    return Ok(command_canonical.into_os_string().into_string().unwrap());
                 }
             }
         }
-        Ok(false)
+        Err(From::from("Command not present in `allowed_commands`"))
     }
 
     // Get the current prompt or return the default if none is present in config

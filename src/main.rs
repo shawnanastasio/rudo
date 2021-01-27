@@ -103,16 +103,15 @@ fn run_command<T: OSUtils>(osutils: &T, user: Option<String>, group: Option<Stri
 
     // Confirm that user is in the settings file and has permission
     let username: String = osutils.get_username()?;
-    let can_run = settings.can_run_command(&username, command).unwrap_or_else(|err| {
-        writeln!(&mut io::stderr(), "Permission denied: {:?}", err).unwrap();
-        return false;
-    });
-
-    if !can_run {
-        writeln!(&mut io::stderr(), "You don't have permission to run that! This incident won't be reported.")
-            .unwrap();
-        return Ok(1);
-    }
+    let safe_command_path = match settings.sanitize_user_command(&username, command) {
+        Ok(v) => v,
+        Err(e) => {
+            dbg!(e);
+            writeln!(&mut io::stderr(), "You don't have permission to run that! This incident won't be reported.")
+                .unwrap();
+            return Ok(1);
+        }
+    };
 
     // Determine the uid of the user to impersonate
     let mut uid: u32 = 0;
@@ -123,15 +122,13 @@ fn run_command<T: OSUtils>(osutils: &T, user: Option<String>, group: Option<Stri
         gid = uidgid.1;
     }
 
-
     // If the user provided a group, set that
     if let Some(groupname) = group {
     	gid = osutils.get_gid_by_groupname(&groupname)?;
     }
 
-
     // Now that the user is authenticated, run the provided command
-    Command::new(command).args(args).uid(uid).gid(gid).exec();
+    Command::new(safe_command_path).args(args).uid(uid).gid(gid).exec();
 
     // If we got here, it means the command failed
     writeln!(&mut io::stderr(), "rudo: {}: command not found", &command).unwrap();
