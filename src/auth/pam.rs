@@ -1,6 +1,7 @@
 use std::ffi::CString;
 use std::error::Error;
 use std::io::Write;
+use std::os::raw::c_char;
 
 extern crate termion;
 use self::termion::input::TermRead;
@@ -15,7 +16,7 @@ use osutils::OSUtils;
 extern "C" {
     // Functions from pamwrapper
     // bool check_authentication(const char *user, const char *pass);
-    pub fn check_authentication(username: *const i8, password: *const i8) -> bool;
+    pub fn check_authentication(username: *const c_char, password: *const c_char) -> bool;
 }
 
 const PAM_MAXTRIES: i32 = 0; 
