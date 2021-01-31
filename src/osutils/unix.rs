@@ -20,7 +20,7 @@ impl OSUtils for UnixOSUtils {
     fn get_username(&self) -> Result<String, Box<dyn Error>> {
         match get_user_by_uid(get_current_uid()) {
             Some(u) => {
-                Ok(String::from(u.name()))
+                Ok(String::from(u.name().to_str().unwrap()))
             },
 
             None => {
