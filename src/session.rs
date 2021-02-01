@@ -115,7 +115,7 @@ fn find_user_session(username: &str, ttyname: &str) -> Result<Option<Session>, B
         let cur_session: Session = serde_json::from_str(&buf)?;
 
         // Delete the session if it has expired
-        let cur_timestamp = time::get_time().sec;
+        let cur_timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
         if cur_timestamp >= cur_session.end_timestamp {
             // This session is expired, delete it
             fs::remove_file(file.path())?;
@@ -158,7 +158,7 @@ pub fn create_session(username: &str, time: i64) -> Result<(), Box<dyn Error>> {
     let ttyname = get_cur_tty_name()?;
 
     // Create the new session object
-    let cur_timestamp = time::get_time().sec;
+    let cur_timestamp = time::OffsetDateTime::now_utc().unix_timestamp();
     let new_session = Session {
         ttyname: ttyname,
         start_timestamp: cur_timestamp,
